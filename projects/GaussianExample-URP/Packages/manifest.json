@@ -3,6 +3,7 @@
     "com.unity.ide.rider": "3.0.31",
     "com.unity.multiplayer.center": "1.0.0",
     "com.unity.render-pipelines.universal": "17.0.3",
+    "com.unity.xr.mock-hmd": "1.4.0-preview.2",
     "com.unity.xr.visionos": "2.0.4",
     "org.nesnausk.gaussian-splatting": "file:../../../package",
     "com.unity.modules.accessibility": "1.0.0",
