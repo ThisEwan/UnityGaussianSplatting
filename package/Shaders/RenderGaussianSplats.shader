@@ -70,11 +70,10 @@ v2f vert (appdata v)
 		uint idx = v.vtxID;
 		float2 quadPos = float2(idx&1, (idx>>1)&1) * 2.0 - 1.0;
 		
-#if defined(UNITY_STEREO_INSTANCING_ENABLED)		
-		quadPos *= 4;
+		quadPos *= 2;
+#if defined(UNITY_STEREO_INSTANCING_ENABLED)
 		float2 deltaScreenPos = (quadPos.x * view.axis1 + quadPos.y * view.axis2) * 4 / _ScreenParams.xy;
 #else
-		quadPos *= 2;
 		float2 deltaScreenPos = (quadPos.x * view.axis1 + quadPos.y * view.axis2) * 2 / _ScreenParams.xy;
 #endif
 		
