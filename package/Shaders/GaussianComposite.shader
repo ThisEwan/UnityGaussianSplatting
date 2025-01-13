@@ -10,36 +10,52 @@ Shader "Hidden/Gaussian Splatting/Composite"
             Cull Off
             Blend SrcAlpha OneMinusSrcAlpha
 
-CGPROGRAM
+            
+HLSLPROGRAM
 #pragma vertex vert
 #pragma fragment frag
-#pragma require compute
-#pragma use_dxc
-#include "UnityCG.cginc"
 
-struct v2f
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+
+struct Attributes
 {
-    float4 vertex : SV_POSITION;
+    uint vertexID : SV_VertexID;
+    UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
-v2f vert (uint vtxID : SV_VertexID)
+struct Varyings
 {
-    v2f o;
-    float2 quadPos = float2(vtxID&1, (vtxID>>1)&1) * 4.0 - 1.0;
-	o.vertex = float4(quadPos, 1, 1);
-    return o;
+    float4 positionCS : SV_POSITION;
+    UNITY_VERTEX_OUTPUT_STEREO
+};
+
+Varyings vert(Attributes input)
+{
+    Varyings output;
+    UNITY_SETUP_INSTANCE_ID(input);
+    UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
+
+    float2 quadPos = float2(input.vertexID&1, (input.vertexID>>1)&1) * 4.0 - 1.0;
+    
+    output.positionCS = float4(quadPos, 1, 1);
+
+    return output;
 }
 
-Texture2D _GaussianSplatRT;
+TEXTURE2D_X(_GaussianSplatRT);
 
-half4 frag (v2f i) : SV_Target
+half4 frag (Varyings i) : SV_Target
 {
-    half4 col = _GaussianSplatRT.Load(int3(i.vertex.xy, 0));
-    col.rgb = GammaToLinearSpace(col.rgb);
+    UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
+    half4 col = LOAD_TEXTURE2D_X(_GaussianSplatRT, i.positionCS.xy);
+    col.rgb = Gamma22ToLinear(col.xyz);
     col.a = saturate(col.a * 1.5);
     return col;
 }
-ENDCG
+
+ENDHLSL
         }
     }
 }

@@ -1,3 +1,5 @@
+// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
 // SPDX-License-Identifier: MIT
 Shader "Gaussian Splatting/Render Splats"
 {
@@ -11,33 +13,48 @@ Shader "Gaussian Splatting/Render Splats"
             Blend OneMinusDstAlpha One
             Cull Off
             
-CGPROGRAM
+HLSLPROGRAM
 #pragma vertex vert
 #pragma fragment frag
-#pragma require compute
-#pragma use_dxc
 
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityInput.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 #include "GaussianSplatting.hlsl"
 
 StructuredBuffer<uint> _OrderBuffer;
 
+struct appdata
+{
+	uint vtxID : SV_VertexID;
+	uint instID : SV_InstanceID;
+	UNITY_VERTEX_INPUT_INSTANCE_ID //Insert
+};
+
 struct v2f
 {
-    half4 col : COLOR0;
+    float4 col : COLOR0;
     float2 pos : TEXCOORD0;
     float4 vertex : SV_POSITION;
+	
+	UNITY_VERTEX_OUTPUT_STEREO //Insert
 };
 
 StructuredBuffer<SplatViewData> _SplatViewData;
 ByteAddressBuffer _SplatSelectedBits;
 uint _SplatBitsValid;
 
-v2f vert (uint vtxID : SV_VertexID, uint instID : SV_InstanceID)
+v2f vert (appdata v)
 {
     v2f o = (v2f)0;
-    instID = _OrderBuffer[instID];
-	SplatViewData view = _SplatViewData[instID];
-	float4 centerClipPos = view.pos;
+	UNITY_SETUP_INSTANCE_ID(v); //Insert
+    UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o); //Insert
+	uint instId = floor(v.instID / 2);
+    instId = _OrderBuffer[instId];
+	SplatViewData view = _SplatViewData[instId];
+	SplatData splat = LoadSplatData(instId);
+	float4 centerClipPos = mul(UNITY_MATRIX_MVP, float4(splat.pos, 1));
+	
 	bool behindCam = centerClipPos.w <= 0;
 	if (behindCam)
 	{
@@ -50,21 +67,26 @@ v2f vert (uint vtxID : SV_VertexID, uint instID : SV_InstanceID)
 		o.col.b = f16tof32(view.color.y >> 16);
 		o.col.a = f16tof32(view.color.y);
 
-		uint idx = vtxID;
+		uint idx = v.vtxID;
 		float2 quadPos = float2(idx&1, (idx>>1)&1) * 2.0 - 1.0;
+		
+#if defined(UNITY_STEREO_INSTANCING_ENABLED)		
+		quadPos *= 4;
+		float2 deltaScreenPos = (quadPos.x * view.axis1 + quadPos.y * view.axis2) * 4 / _ScreenParams.xy;
+#else
 		quadPos *= 2;
-
-		o.pos = quadPos;
-
 		float2 deltaScreenPos = (quadPos.x * view.axis1 + quadPos.y * view.axis2) * 2 / _ScreenParams.xy;
+#endif
+		
+		o.pos = quadPos;
 		o.vertex = centerClipPos;
 		o.vertex.xy += deltaScreenPos * centerClipPos.w;
 
 		// is this splat selected?
 		if (_SplatBitsValid)
 		{
-			uint wordIdx = instID / 32;
-			uint bitIdx = instID & 31;
+			uint wordIdx = v.vtxID / 32;
+			uint bitIdx = v.vtxID & 31;
 			uint selVal = _SplatSelectedBits.Load(wordIdx * 4);
 			if (selVal & (1 << bitIdx))
 			{
@@ -77,6 +99,7 @@ v2f vert (uint vtxID : SV_VertexID, uint instID : SV_InstanceID)
 
 half4 frag (v2f i) : SV_Target
 {
+	UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
 	float power = -dot(i.pos, i.pos);
 	half alpha = exp(power);
 	if (i.col.a >= 0)
@@ -105,7 +128,7 @@ half4 frag (v2f i) : SV_Target
     half4 res = half4(i.col.rgb * alpha, alpha);
     return res;
 }
-ENDCG
+ENDHLSL
         }
     }
 }
