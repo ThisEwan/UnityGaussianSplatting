@@ -65,7 +65,7 @@ PlayerSettings:
   allowedAutorotateToLandscapeLeft: 1
   useOSAutorotation: 1
   use32BitDisplayBuffer: 1
-  preserveFramebufferAlpha: 0
+  preserveFramebufferAlpha: 1
   disableDepthAndStencilBuffers: 0
   androidStartInFullscreen: 1
   androidRenderOutsideSafeArea: 1
@@ -152,10 +152,10 @@ PlayerSettings:
   isWsaHolographicRemotingEnabled: 0
   enableFrameTimingStats: 1
   enableOpenGLProfilerGPURecorders: 1
-  allowHDRDisplaySupport: 0
+  allowHDRDisplaySupport: 1
   useHDRDisplay: 0
   hdrBitDepth: 0
-  m_ColorGamuts: 00000000
+  m_ColorGamuts: 0300000000000000
   targetPixelDensity: 30
   resolutionScalingMode: 0
   resetResolutionOnWindowResize: 0
@@ -164,6 +164,7 @@ PlayerSettings:
   androidMinAspectRatio: 1
   applicationIdentifier:
     Standalone: com.DefaultCompany.UnityGaussianSplatting
+    VisionOS: com.DefaultCompany.UnityGaussianSplatting
   buildNumber:
     Bratwurst: 0
     Standalone: 0
@@ -873,7 +874,7 @@ PlayerSettings:
   qnxGraphicConfPath: 
   apiCompatibilityLevel: 6
   captureStartupLogs: {}
-  activeInputHandler: 0
+  activeInputHandler: 2
   windowsGamepadBackendHint: 0
   cloudProjectId: 
   framebufferDepthMemorylessMode: 0
