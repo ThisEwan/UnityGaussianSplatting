@@ -157,14 +157,15 @@ namespace GaussianSplatting.Runtime
                     instanceCount = gs.m_GpuChunksValid ? gs.m_GpuChunks.count : 0;
 
                 cmb.BeginSample(s_ProfDraw);
-                if (XRSettings.stereoRenderingMode == XRSettings.StereoRenderingMode.SinglePassInstanced)
-                {
-                    cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount * 2, mpb);
-                }
-                else
-                {
-                    cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount, mpb);
-                }
+                cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount, mpb);
+                // if (XRSettings.stereoRenderingMode == XRSettings.StereoRenderingMode.SinglePassInstanced)
+                // {
+                //     cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount /** 2*/, mpb);
+                // }
+                // else
+                // {
+                //     cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount, mpb);
+                // }
                 cmb.EndSample(s_ProfDraw);
             }
             return matComposite;

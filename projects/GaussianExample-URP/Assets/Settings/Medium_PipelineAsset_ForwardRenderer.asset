@@ -41,7 +41,7 @@ MonoBehaviour:
   - {fileID: -6851802070553482712}
   m_RendererFeatureMap: 28aa5fb95182e9a0
   m_UseNativeRenderPass: 0
-  xrSystemData: {fileID: 11400000, guid: 60e1133243b97e347b653163a8c01b64, type: 2}
+  xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   m_AssetVersion: 2
   m_OpaqueLayerMask:
@@ -63,5 +63,5 @@ MonoBehaviour:
   m_CopyDepthMode: 0
   m_DepthAttachmentFormat: 0
   m_DepthTextureFormat: 0
-  m_AccurateGbufferNormals: 0
+  m_AccurateGbufferNormals: 1
   m_IntermediateTextureMode: 1
