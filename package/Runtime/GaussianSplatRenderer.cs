@@ -158,14 +158,6 @@ namespace GaussianSplatting.Runtime
 
                 cmb.BeginSample(s_ProfDraw);
                 cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount, mpb);
-                // if (XRSettings.stereoRenderingMode == XRSettings.StereoRenderingMode.SinglePassInstanced)
-                // {
-                //     cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount /** 2*/, mpb);
-                // }
-                // else
-                // {
-                //     cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount, mpb);
-                // }
                 cmb.EndSample(s_ProfDraw);
             }
             return matComposite;
