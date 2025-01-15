@@ -157,7 +157,14 @@ namespace GaussianSplatting.Runtime
                     instanceCount = gs.m_GpuChunksValid ? gs.m_GpuChunks.count : 0;
 
                 cmb.BeginSample(s_ProfDraw);
-                cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount * 2, mpb);
+                if (XRSettings.stereoRenderingMode == XRSettings.StereoRenderingMode.SinglePassInstanced)
+                {
+                    cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount * 2, mpb);
+                }
+                else
+                {
+                    cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount, mpb);
+                }
                 cmb.EndSample(s_ProfDraw);
             }
             return matComposite;
@@ -303,6 +310,11 @@ namespace GaussianSplatting.Runtime
             public static readonly int DstBuffer = Shader.PropertyToID("_DstBuffer");
             public static readonly int BufferSize = Shader.PropertyToID("_BufferSize");
             public static readonly int MatrixMV = Shader.PropertyToID("_MatrixMV");
+            public static readonly int MatrixLV = Shader.PropertyToID("_MatrixLV");
+            public static readonly int MatrixRV = Shader.PropertyToID("_MatrixRV");
+            public static readonly int MatrixLP = Shader.PropertyToID("_MatrixLP");
+            public static readonly int MatrixRP = Shader.PropertyToID("_MatrixRP");
+            public static readonly int MatrixVP = Shader.PropertyToID("_MatrixVP");
             public static readonly int MatrixObjectToWorld = Shader.PropertyToID("_MatrixObjectToWorld");
             public static readonly int MatrixWorldToObject = Shader.PropertyToID("_MatrixWorldToObject");
             public static readonly int VecScreenParams = Shader.PropertyToID("_VecScreenParams");
@@ -357,8 +369,9 @@ namespace GaussianSplatting.Runtime
 
         const int kGpuViewDataSize = 40;
 
-        void CreateResourcesForAsset()
+        void CreateResourcesForAsset(int mode)
         {
+            Debug.Log(mode);
             if (!HasValidAsset)
                 return;
 
@@ -390,8 +403,9 @@ namespace GaussianSplatting.Runtime
                     UnsafeUtility.SizeOf<GaussianSplatAsset.ChunkInfo>()) {name = "GaussianChunkData"};
                 m_GpuChunksValid = false;
             }
+            
+            m_GpuView = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Asset.splatCount * mode, kGpuViewDataSize);
 
-            m_GpuView = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Asset.splatCount, kGpuViewDataSize);
             m_GpuIndexBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Index, 36, 2);
             // cube indices, most often we use only the first quad
             m_GpuIndexBuffer.SetData(new ushort[]
@@ -444,8 +458,7 @@ namespace GaussianSplatting.Runtime
 
             m_Sorter = new GpuSorting(m_CSSplatUtilities);
             GaussianSplatRenderSystem.instance.RegisterSplat(this);
-
-            CreateResourcesForAsset();
+            CreateResourcesForAsset(2);
         }
 
         void SetAssetDataOnCS(CommandBuffer cmb, KernelIndices kernel)
@@ -559,6 +572,7 @@ namespace GaussianSplatting.Runtime
             SetAssetDataOnCS(cmb, KernelIndices.CalcViewData);
 
             cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixMV, matView * matO2W);
+            cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixVP, matProj * matView);
             cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixObjectToWorld, matO2W);
             cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixWorldToObject, matW2O);
 
@@ -568,6 +582,19 @@ namespace GaussianSplatting.Runtime
             cmb.SetComputeFloatParam(m_CSSplatUtilities, Props.SplatOpacityScale, m_OpacityScale);
             cmb.SetComputeIntParam(m_CSSplatUtilities, Props.SHOrder, m_SHOrder);
             cmb.SetComputeIntParam(m_CSSplatUtilities, Props.SHOnly, m_SHOnly ? 1 : 0);
+            if (XRSettings.stereoRenderingMode == XRSettings.StereoRenderingMode.SinglePassInstanced)
+            {
+                Matrix4x4 matLView = cam.GetStereoViewMatrix(Camera.StereoscopicEye.Left);
+                Matrix4x4 matRView = cam.GetStereoViewMatrix(Camera.StereoscopicEye.Right);
+                Matrix4x4 matLProj = GL.GetGPUProjectionMatrix(cam.GetStereoProjectionMatrix(Camera.StereoscopicEye.Left), false);
+                Matrix4x4 matRProj = GL.GetGPUProjectionMatrix(cam.GetStereoProjectionMatrix(Camera.StereoscopicEye.Right), false);
+                
+                
+                cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixLV, matLView);
+                cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixRV, matRView);
+                cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixLP, matLProj);
+                cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixRP, matRProj);
+            }
 
             m_CSSplatUtilities.GetKernelThreadGroupSizes((int)KernelIndices.CalcViewData, out uint gsX, out _, out _);
             cmb.DispatchCompute(m_CSSplatUtilities, (int)KernelIndices.CalcViewData, (m_GpuView.count + (int)gsX - 1)/(int)gsX, 1, 1);
@@ -609,7 +636,7 @@ namespace GaussianSplatting.Runtime
                 m_PrevAsset = m_Asset;
                 m_PrevHash = curHash;
                 DisposeResourcesForAsset();
-                CreateResourcesForAsset();
+                CreateResourcesForAsset(1);
             }
         }
 

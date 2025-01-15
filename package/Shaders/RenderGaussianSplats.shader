@@ -1,5 +1,3 @@
-// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
-
 // SPDX-License-Identifier: MIT
 Shader "Gaussian Splatting/Render Splats"
 {
@@ -18,7 +16,7 @@ HLSLPROGRAM
 #pragma fragment frag
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityInput.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Input.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 #include "GaussianSplatting.hlsl"
 
@@ -36,7 +34,7 @@ struct v2f
     float4 col : COLOR0;
     float2 pos : TEXCOORD0;
     float4 vertex : SV_POSITION;
-	
+	UNITY_VERTEX_INPUT_INSTANCE_ID //Insert
 	UNITY_VERTEX_OUTPUT_STEREO //Insert
 };
 
@@ -46,14 +44,22 @@ uint _SplatBitsValid;
 
 v2f vert (appdata v)
 {
-    v2f o = (v2f)0;
 	UNITY_SETUP_INSTANCE_ID(v); //Insert
+    v2f o = (v2f)0;
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o); //Insert
-	uint instId = floor(v.instID / 2);
-    instId = _OrderBuffer[instId];
+
+	uint instId = v.instID;
+#ifdef UNITY_STEREO_INSTANCING_ENABLED	
+	instId = _OrderBuffer[floor(instId / 2)];
+	SplatViewData view = _SplatViewData[instId * 2 + unity_StereoEyeIndex];
+#else
+	instId = _OrderBuffer[instId];
 	SplatViewData view = _SplatViewData[instId];
+#endif
+	
 	SplatData splat = LoadSplatData(instId);
-	float4 centerClipPos = mul(UNITY_MATRIX_MVP, float4(splat.pos, 1));
+	float4 centerWorldPos = mul(UNITY_MATRIX_M, float4(splat.pos, 1));
+	float4 centerClipPos = mul(UNITY_MATRIX_VP, centerWorldPos);
 	
 	bool behindCam = centerClipPos.w <= 0;
 	if (behindCam)
@@ -71,11 +77,7 @@ v2f vert (appdata v)
 		float2 quadPos = float2(idx&1, (idx>>1)&1) * 2.0 - 1.0;
 		
 		quadPos *= 2;
-#if defined(UNITY_STEREO_INSTANCING_ENABLED)
-		float2 deltaScreenPos = (quadPos.x * view.axis1 + quadPos.y * view.axis2) * 4 / _ScreenParams.xy;
-#else
 		float2 deltaScreenPos = (quadPos.x * view.axis1 + quadPos.y * view.axis2) * 2 / _ScreenParams.xy;
-#endif
 		
 		o.pos = quadPos;
 		o.vertex = centerClipPos;

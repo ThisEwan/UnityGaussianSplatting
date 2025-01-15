@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Rendering;
+using UnityEngine.XR;
 
 namespace GaussianSplatting.Runtime
 {
@@ -126,6 +127,12 @@ namespace GaussianSplatting.Runtime
                 cs.EnableKeyword(m_vulkanKeyword);
             else
                 cs.DisableKeyword(m_vulkanKeyword);
+            
+            if (XRSettings.stereoRenderingMode == XRSettings.StereoRenderingMode.SinglePassInstanced)
+            {
+                LocalKeyword singlePass = new LocalKeyword(cs, "STEREO_INSTANCING_ON");
+                cs.EnableKeyword(singlePass);
+            }
         }
 
         static uint DivRoundUp(uint x, uint y) => (x + y - 1) / y;
