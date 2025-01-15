@@ -49,7 +49,7 @@ v2f vert (appdata v)
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o); //Insert
 
 	uint instId = v.instID;
-#ifdef UNITY_STEREO_INSTANCING_ENABLED	
+#ifdef STEREO_INSTANCING_ON	
 	instId = _OrderBuffer[floor(instId / 2)];
 	SplatViewData view = _SplatViewData[instId * 2 + unity_StereoEyeIndex];
 #else

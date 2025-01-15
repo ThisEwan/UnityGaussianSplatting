@@ -128,11 +128,11 @@ namespace GaussianSplatting.Runtime
             else
                 cs.DisableKeyword(m_vulkanKeyword);
             
-            if (XRSettings.stereoRenderingMode == XRSettings.StereoRenderingMode.SinglePassInstanced)
-            {
-                LocalKeyword singlePass = new LocalKeyword(cs, "STEREO_INSTANCING_ON");
-                cs.EnableKeyword(singlePass);
-            }
+            // if (Application.isPlaying)
+            // {
+            //     LocalKeyword singlePass = new LocalKeyword(cs, "STEREO_INSTANCING_ON");
+            //     cs.EnableKeyword(singlePass);
+            // }
         }
 
         static uint DivRoundUp(uint x, uint y) => (x + y - 1) / y;

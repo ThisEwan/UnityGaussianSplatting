@@ -314,7 +314,7 @@ namespace GaussianSplatting.Runtime
             public static readonly int MatrixRV = Shader.PropertyToID("_MatrixRV");
             public static readonly int MatrixLP = Shader.PropertyToID("_MatrixLP");
             public static readonly int MatrixRP = Shader.PropertyToID("_MatrixRP");
-            public static readonly int MatrixVP = Shader.PropertyToID("_MatrixVP");
+            public static readonly int SinglePassMode = Shader.PropertyToID("_SinglePassMode");
             public static readonly int MatrixObjectToWorld = Shader.PropertyToID("_MatrixObjectToWorld");
             public static readonly int MatrixWorldToObject = Shader.PropertyToID("_MatrixWorldToObject");
             public static readonly int VecScreenParams = Shader.PropertyToID("_VecScreenParams");
@@ -369,9 +369,8 @@ namespace GaussianSplatting.Runtime
 
         const int kGpuViewDataSize = 40;
 
-        void CreateResourcesForAsset(int mode)
+        void CreateResourcesForAsset()
         {
-            Debug.Log(mode);
             if (!HasValidAsset)
                 return;
 
@@ -404,7 +403,15 @@ namespace GaussianSplatting.Runtime
                 m_GpuChunksValid = false;
             }
             
-            m_GpuView = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Asset.splatCount * mode, kGpuViewDataSize);
+            if (Application.isPlaying)
+            {
+                m_GpuView = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Asset.splatCount * 2, kGpuViewDataSize);
+            }
+            else
+            {
+                m_GpuView = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Asset.splatCount, kGpuViewDataSize);
+            }
+            
 
             m_GpuIndexBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Index, 36, 2);
             // cube indices, most often we use only the first quad
@@ -458,7 +465,7 @@ namespace GaussianSplatting.Runtime
 
             m_Sorter = new GpuSorting(m_CSSplatUtilities);
             GaussianSplatRenderSystem.instance.RegisterSplat(this);
-            CreateResourcesForAsset(2);
+            CreateResourcesForAsset();
         }
 
         void SetAssetDataOnCS(CommandBuffer cmb, KernelIndices kernel)
@@ -572,7 +579,6 @@ namespace GaussianSplatting.Runtime
             SetAssetDataOnCS(cmb, KernelIndices.CalcViewData);
 
             cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixMV, matView * matO2W);
-            cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixVP, matProj * matView);
             cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixObjectToWorld, matO2W);
             cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixWorldToObject, matW2O);
 
@@ -589,11 +595,15 @@ namespace GaussianSplatting.Runtime
                 Matrix4x4 matLProj = GL.GetGPUProjectionMatrix(cam.GetStereoProjectionMatrix(Camera.StereoscopicEye.Left), false);
                 Matrix4x4 matRProj = GL.GetGPUProjectionMatrix(cam.GetStereoProjectionMatrix(Camera.StereoscopicEye.Right), false);
                 
-                
                 cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixLV, matLView);
                 cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixRV, matRView);
                 cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixLP, matLProj);
                 cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixRP, matRProj);
+                cmb.SetComputeIntParam(m_CSSplatUtilities, Props.SinglePassMode, 1);
+            }
+            else
+            {
+                cmb.SetComputeIntParam(m_CSSplatUtilities, Props.SinglePassMode, 0);
             }
 
             m_CSSplatUtilities.GetKernelThreadGroupSizes((int)KernelIndices.CalcViewData, out uint gsX, out _, out _);
@@ -636,7 +646,7 @@ namespace GaussianSplatting.Runtime
                 m_PrevAsset = m_Asset;
                 m_PrevHash = curHash;
                 DisposeResourcesForAsset();
-                CreateResourcesForAsset(1);
+                CreateResourcesForAsset();
             }
         }
 
