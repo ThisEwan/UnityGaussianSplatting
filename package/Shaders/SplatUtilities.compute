@@ -23,7 +23,6 @@
 #pragma multi_compile __ SHOULD_ASCEND
 #pragma multi_compile __ SORT_PAIRS
 #pragma multi_compile __ VULKAN
-// #pragma multi_compile __ STEREO_INSTANCING_ON
 #pragma kernel InitDeviceRadixSort
 #pragma kernel Upsweep
 #pragma kernel Scan
@@ -41,14 +40,14 @@
 float4x4 _MatrixObjectToWorld;
 float4x4 _MatrixWorldToObject;
 float4x4 _MatrixMV;
-// #ifdef STEREO_INSTANCING_ON
 float4x4 _MatrixLV;
 float4x4 _MatrixRV;
 float4x4 _MatrixLP;
 float4x4 _MatrixRP;
-// #endif
 float4 _VecScreenParams;
 float4 _VecWorldSpaceCameraPos;
+float4 _VecWorldSpaceLeftCameraPos;
+float4 _VecWorldSpaceRightCameraPos;
 int _SelectionMode;
 int _SinglePassMode;
 
@@ -208,10 +207,19 @@ void CSCalcViewData (uint3 id : SV_DispatchThreadID)
         if (idx >= _SplatCount * 2)
             return;
         splat = LoadSplatData(floor(idx / 2));
-        uint eye = idx % 2;
         centerWorldPos = mul(_MatrixObjectToWorld, float4(splat.pos, 1));
-        float4x4 v = lerp(_MatrixLV, _MatrixRV, eye);
-        float4x4 p = lerp(_MatrixLP, _MatrixRP, eye);
+        float4x4 v;
+        float4x4 p;
+        if (idx % 2 == 0)
+        {
+            v = _MatrixLV;
+            p = _MatrixLP;
+        }
+        else if (idx % 2 == 1)
+        {
+            v = _MatrixRV;
+            p = _MatrixRP;
+        }
         float4x4 vp = mul(p, v);
         centerClipPos = mul(vp, centerWorldPos);
     }
@@ -261,23 +269,37 @@ void CSCalcViewData (uint3 id : SV_DispatchThreadID)
         cov3d1 *= splatScale2;
         
         float3 cov2d;
+        float3 worldViewDir;
         if (_SinglePassMode == 1)
         {
-            uint eye = idx % 2;
-            float4x4 v = lerp(_MatrixLV, _MatrixRV, eye);
+            float4x4 v;
+            float4x4 p;
+            float4 cameraPosWS;
+            if (idx % 2 == 0)
+            {
+                v = _MatrixLV;
+                p = _MatrixLP;
+                cameraPosWS = _VecWorldSpaceLeftCameraPos;
+            }
+            else if (idx % 2 == 1)
+            {
+                v = _MatrixRV;
+                p = _MatrixRP;
+                cameraPosWS = _VecWorldSpaceRightCameraPos;
+            }
             float4x4 vm = mul(v, _MatrixObjectToWorld);
-            float4x4 p = lerp(_MatrixLP, _MatrixRP, eye);
             cov2d = CalcCovariance2D(splat.pos, cov3d0, cov3d1, vm, p, _VecScreenParams);
+            DecomposeCovariance(cov2d, view.axis1, view.axis2);
+            worldViewDir = cameraPosWS.xyz - centerWorldPos.xyz;
         }
         else
         {
             float4x4 vm = mul(UNITY_MATRIX_V, _MatrixObjectToWorld);
             cov2d = CalcCovariance2D(splat.pos, cov3d0, cov3d1, vm, UNITY_MATRIX_P, _VecScreenParams);
+            DecomposeCovariance(cov2d, view.axis1, view.axis2);
+            worldViewDir = _VecWorldSpaceCameraPos.xyz - centerWorldPos.xyz;
         }
 
-        DecomposeCovariance(cov2d, view.axis1, view.axis2);
-
-        float3 worldViewDir = _VecWorldSpaceCameraPos.xyz - centerWorldPos;
         float3 objViewDir = mul((float3x3)_MatrixWorldToObject, worldViewDir);
         objViewDir = normalize(objViewDir);
 

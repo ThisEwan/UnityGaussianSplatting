@@ -312,6 +312,8 @@ namespace GaussianSplatting.Runtime
             public static readonly int MatrixWorldToObject = Shader.PropertyToID("_MatrixWorldToObject");
             public static readonly int VecScreenParams = Shader.PropertyToID("_VecScreenParams");
             public static readonly int VecWorldSpaceCameraPos = Shader.PropertyToID("_VecWorldSpaceCameraPos");
+            public static readonly int VecWorldSpaceLeftCameraPos = Shader.PropertyToID("_VecWorldSpaceLeftCameraPos");
+            public static readonly int VecWorldSpaceRightCameraPos = Shader.PropertyToID("_VecWorldSpaceRightCameraPos");
             public static readonly int SelectionCenter = Shader.PropertyToID("_SelectionCenter");
             public static readonly int SelectionDelta = Shader.PropertyToID("_SelectionDelta");
             public static readonly int SelectionDeltaRot = Shader.PropertyToID("_SelectionDeltaRot");
@@ -587,11 +589,15 @@ namespace GaussianSplatting.Runtime
                 Matrix4x4 matRView = cam.GetStereoViewMatrix(Camera.StereoscopicEye.Right);
                 Matrix4x4 matLProj = GL.GetGPUProjectionMatrix(cam.GetStereoProjectionMatrix(Camera.StereoscopicEye.Left), false);
                 Matrix4x4 matRProj = GL.GetGPUProjectionMatrix(cam.GetStereoProjectionMatrix(Camera.StereoscopicEye.Right), false);
+                Vector4 cameraLPos = matLView.GetPosition();
+                Vector4 cameraRPos = matRView.GetPosition();
                 
                 cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixLV, matLView);
                 cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixRV, matRView);
                 cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixLP, matLProj);
                 cmb.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixRP, matRProj);
+                cmb.SetComputeVectorParam(m_CSSplatUtilities, Props.VecWorldSpaceLeftCameraPos, cameraLPos);
+                cmb.SetComputeVectorParam(m_CSSplatUtilities, Props.VecWorldSpaceRightCameraPos, cameraRPos);
                 cmb.SetComputeIntParam(m_CSSplatUtilities, Props.SinglePassMode, 1);
             }
             else
