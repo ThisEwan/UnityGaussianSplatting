@@ -614,4 +614,15 @@ struct SplatViewData
     uint2 color; // 4xFP16
 };
 
+bool IsWithFrustum(float4 posCS)
+{
+    if (-posCS.w <= posCS.x * 2 && posCS.x * 2 <= posCS.w &&
+        -posCS.w <= posCS.y * 2 && posCS.y * 2 <= posCS.w &&
+        -posCS.w <= posCS.z && posCS.z <= posCS.w)
+    {
+        return true;
+    }
+    return false;
+}
+
 #endif // GAUSSIAN_SPLATTING_HLSL

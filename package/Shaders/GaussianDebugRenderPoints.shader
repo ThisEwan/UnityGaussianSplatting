@@ -27,6 +27,7 @@ struct v2f
 float _SplatSize;
 bool _DisplayIndex;
 int _SplatCount;
+StructuredBuffer<uint> _VisibleIndexes;
 
 v2f vert (uint vtxID : SV_VertexID, uint instID : SV_InstanceID)
 {
@@ -44,8 +45,17 @@ v2f vert (uint vtxID : SV_VertexID, uint instID : SV_InstanceID)
 	uint idx = vtxID;
     float2 quadPos = float2(idx&1, (idx>>1)&1) * 2.0 - 1.0;
     o.vertex.xy += (quadPos * _SplatSize / _ScreenParams.xy) * o.vertex.w;
-
-    o.color.rgb = saturate(splat.sh.col);
+    
+    if (_VisibleIndexes[instID] > 0)
+    {
+        o.color.rgb = saturate(splat.sh.col);
+    }
+    else
+    {
+        o.color.rgb = float3(0, 0, 0);
+    }
+    // o.color.rgb = saturate(splat.sh.col);
+    
     if (_DisplayIndex)
     {
         o.color.r = frac((float)splatIndex / (float)_SplatCount * 100);

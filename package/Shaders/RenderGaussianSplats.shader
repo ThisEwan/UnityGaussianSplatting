@@ -41,6 +41,7 @@ struct v2f
 StructuredBuffer<SplatViewData> _SplatViewData;
 ByteAddressBuffer _SplatSelectedBits;
 uint _SplatBitsValid;
+StructuredBuffer<uint> _VisibleIndexes;
 
 v2f vert (appdata v)
 {
@@ -53,7 +54,8 @@ v2f vert (appdata v)
 	instId = _OrderBuffer[floor(instId / 2)];
 	SplatViewData view = _SplatViewData[instId * 2 + unity_StereoEyeIndex];
 #else
-	instId = _OrderBuffer[instId];
+	uint visibleIndice = _VisibleIndexes[instId];
+	instId = _OrderBuffer[visibleIndice];
 	SplatViewData view = _SplatViewData[instId];
 #endif
 	

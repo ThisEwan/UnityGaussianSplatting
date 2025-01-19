@@ -99,6 +99,13 @@ namespace GaussianSplatting.Runtime
 
             return true;
         }
+        //
+        // struct SplatViewData
+        // {
+        //     public float4 pos;
+        //     public float2 axis1, axis2;
+        //     public uint2 color; // 4xFP16
+        // };
 
         // ReSharper disable once MemberCanBePrivate.Global - used by HDRP/URP features that are not always compiled
         public Material SortAndRenderSplats(Camera cam, CommandBuffer cmb)
@@ -142,11 +149,39 @@ namespace GaussianSplatting.Runtime
                 mpb.SetInteger(GaussianSplatRenderer.Props.SHOnly, gs.m_SHOnly ? 1 : 0);
                 mpb.SetInteger(GaussianSplatRenderer.Props.DisplayIndex, gs.m_RenderMode == GaussianSplatRenderer.RenderMode.DebugPointIndices ? 1 : 0);
                 mpb.SetInteger(GaussianSplatRenderer.Props.DisplayChunks, gs.m_RenderMode == GaussianSplatRenderer.RenderMode.DebugChunkBounds ? 1 : 0);
+                mpb.SetBuffer(GaussianSplatRenderer.Props.VisibleIndexes, gs.m_VisibleIndexBuffer);
 
                 cmb.BeginSample(s_ProfCalcView);
                 gs.CalcViewData(cmb, cam, matrix);
                 cmb.EndSample(s_ProfCalcView);
-
+                
+                // SplatViewData[] splatViewData = new SplatViewData[gs.m_GpuView.count];
+                // gs.m_GpuView.GetData(splatViewData);
+                // int insideCount = 0;
+                // for (int i = 0; i < splatViewData.Length; i++)
+                // {
+                //     if (splatViewData[i].pos.x != 0)
+                //     {
+                //         splatViewData[insideCount] = splatViewData[i];
+                //         insideCount++;
+                //     }
+                // }
+                
+                int visibleCount = 0;
+                uint[] visibleIndices = new uint[gs.m_VisibleIndexBuffer.count];
+                gs.m_VisibleIndexBuffer.GetData(visibleIndices);
+                for (int j = 0; j < visibleIndices.Length; j++)
+                {
+                    if (visibleIndices[j] > 0)
+                    {
+                        visibleIndices[visibleCount] = visibleIndices[j];
+                        visibleCount++;
+                    }
+                }
+                
+                // gs.m_GpuView.SetData(splatViewData);
+                gs.m_VisibleIndexBuffer.SetData(visibleIndices);
+                
                 // draw
                 int indexCount = 6;
                 int instanceCount = gs.splatCount;
@@ -157,7 +192,8 @@ namespace GaussianSplatting.Runtime
                     instanceCount = gs.m_GpuChunksValid ? gs.m_GpuChunks.count : 0;
 
                 cmb.BeginSample(s_ProfDraw);
-                cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount, mpb);
+                cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, visibleCount, mpb);
+                // cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount, mpb);
                 cmb.EndSample(s_ProfDraw);
             }
             return matComposite;
@@ -250,6 +286,7 @@ namespace GaussianSplatting.Runtime
         internal bool m_GpuChunksValid;
         internal GraphicsBuffer m_GpuView;
         internal GraphicsBuffer m_GpuIndexBuffer;
+        internal GraphicsBuffer m_VisibleIndexBuffer;
 
         // these buffers are only for splat editing, and are lazily created
         GraphicsBuffer m_GpuEditCutouts;
@@ -322,6 +359,7 @@ namespace GaussianSplatting.Runtime
             public static readonly int SelectionMode = Shader.PropertyToID("_SelectionMode");
             public static readonly int SplatPosMouseDown = Shader.PropertyToID("_SplatPosMouseDown");
             public static readonly int SplatOtherMouseDown = Shader.PropertyToID("_SplatOtherMouseDown");
+            public static readonly int VisibleIndexes = Shader.PropertyToID("_VisibleIndexes");
         }
 
         [field: NonSerialized] public bool editModified { get; private set; }
@@ -431,6 +469,7 @@ namespace GaussianSplatting.Runtime
 
             m_GpuSortDistances = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, 4) { name = "GaussianSplatSortDistances" };
             m_GpuSortKeys = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, 4) { name = "GaussianSplatSortIndices" };
+            m_VisibleIndexBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, 4) { name = "VisibleIndexBuffer" };
 
             // init keys buffer to splat indices
             m_CSSplatUtilities.SetBuffer((int)KernelIndices.SetIndices, Props.SplatSortKeys, m_GpuSortKeys);
@@ -530,6 +569,8 @@ namespace GaussianSplatting.Runtime
             DisposeBuffer(ref m_GpuEditDeleted);
             DisposeBuffer(ref m_GpuEditCountsBounds);
             DisposeBuffer(ref m_GpuEditCutouts);
+            
+            DisposeBuffer(ref m_VisibleIndexBuffer);
 
             m_SorterArgs.resources.Dispose();
 
@@ -604,7 +645,8 @@ namespace GaussianSplatting.Runtime
             {
                 cmb.SetComputeIntParam(m_CSSplatUtilities, Props.SinglePassMode, 0);
             }
-
+            
+            cmb.SetComputeBufferParam(m_CSSplatUtilities, (int)KernelIndices.CalcViewData, Props.VisibleIndexes, m_VisibleIndexBuffer);
             m_CSSplatUtilities.GetKernelThreadGroupSizes((int)KernelIndices.CalcViewData, out uint gsX, out _, out _);
             cmb.DispatchCompute(m_CSSplatUtilities, (int)KernelIndices.CalcViewData, (m_GpuView.count + (int)gsX - 1)/(int)gsX, 1, 1);
         }
