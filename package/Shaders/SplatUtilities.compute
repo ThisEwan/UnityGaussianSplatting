@@ -194,6 +194,7 @@ bool IsSplatCut(float3 pos)
 }
 
 RWStructuredBuffer<uint> _VisibleIndexes;
+StructuredBuffer<uint> _OrderBuffer;
 
 [numthreads(GROUP_SIZE,1,1)]
 void CSCalcViewData (uint3 id : SV_DispatchThreadID)
@@ -259,9 +260,7 @@ void CSCalcViewData (uint3 id : SV_DispatchThreadID)
     view.pos = centerClipPos;
     bool behindCam = centerClipPos.w <= 0;
     if (!behindCam)
-    // if (IsWithFrustum(centerClipPos))
     {
-        // view.pos = centerClipPos;
         float4 boxRot = splat.rot;
         float3 boxSize = splat.scale;
 
@@ -314,15 +313,14 @@ void CSCalcViewData (uint3 id : SV_DispatchThreadID)
         view.color.x = (f32tof16(col.r) << 16) | f32tof16(col.g);
         view.color.y = (f32tof16(col.b) << 16) | f32tof16(col.a);
     }
-    // if (IsWithFrustum(view.pos))
-    // {
-    //     visible = idx;
-    // }
-    // else
-    // {
-    //     visible = 0;
-    // }
-    visible = idx;
+    if (IsWithFrustum(view.pos))
+    {
+        visible = _OrderBuffer[idx] + 1;
+    }
+    else
+    {
+        visible = 0;
+    }
     
     _VisibleIndexes[idx] = visible;
     _SplatViewData[idx] = view;

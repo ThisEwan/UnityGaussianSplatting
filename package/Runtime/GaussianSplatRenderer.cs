@@ -99,13 +99,6 @@ namespace GaussianSplatting.Runtime
 
             return true;
         }
-        //
-        // struct SplatViewData
-        // {
-        //     public float4 pos;
-        //     public float2 axis1, axis2;
-        //     public uint2 color; // 4xFP16
-        // };
 
         // ReSharper disable once MemberCanBePrivate.Global - used by HDRP/URP features that are not always compiled
         public Material SortAndRenderSplats(Camera cam, CommandBuffer cmb)
@@ -155,18 +148,6 @@ namespace GaussianSplatting.Runtime
                 gs.CalcViewData(cmb, cam, matrix);
                 cmb.EndSample(s_ProfCalcView);
                 
-                // SplatViewData[] splatViewData = new SplatViewData[gs.m_GpuView.count];
-                // gs.m_GpuView.GetData(splatViewData);
-                // int insideCount = 0;
-                // for (int i = 0; i < splatViewData.Length; i++)
-                // {
-                //     if (splatViewData[i].pos.x != 0)
-                //     {
-                //         splatViewData[insideCount] = splatViewData[i];
-                //         insideCount++;
-                //     }
-                // }
-                
                 int visibleCount = 0;
                 uint[] visibleIndices = new uint[gs.m_VisibleIndexBuffer.count];
                 gs.m_VisibleIndexBuffer.GetData(visibleIndices);
@@ -174,12 +155,11 @@ namespace GaussianSplatting.Runtime
                 {
                     if (visibleIndices[j] > 0)
                     {
-                        visibleIndices[visibleCount] = visibleIndices[j];
+                        visibleIndices[visibleCount] = visibleIndices[j] - 1;
                         visibleCount++;
                     }
                 }
                 
-                // gs.m_GpuView.SetData(splatViewData);
                 gs.m_VisibleIndexBuffer.SetData(visibleIndices);
                 
                 // draw

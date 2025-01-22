@@ -33,7 +33,7 @@ v2f vert (uint vtxID : SV_VertexID, uint instID : SV_InstanceID)
 {
     v2f o;
     uint splatIndex = instID;
-
+    splatIndex = _VisibleIndexes[splatIndex];
     SplatData splat = LoadSplatData(splatIndex);
 
     float3 centerWorldPos = splat.pos;

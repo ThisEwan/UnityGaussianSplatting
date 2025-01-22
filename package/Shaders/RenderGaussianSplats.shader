@@ -51,11 +51,10 @@ v2f vert (appdata v)
 
 	uint instId = v.instID;
 #ifdef STEREO_INSTANCING_ON	
-	instId = _OrderBuffer[floor(instId / 2)];
+	instId = _VisibleIndexes[floor(instId / 2)];
 	SplatViewData view = _SplatViewData[instId * 2 + unity_StereoEyeIndex];
 #else
-	uint visibleIndice = _VisibleIndexes[instId];
-	instId = _OrderBuffer[visibleIndice];
+	instId = _VisibleIndexes[instId];
 	SplatViewData view = _SplatViewData[instId];
 #endif
 	
