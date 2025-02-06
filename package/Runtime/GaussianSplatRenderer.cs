@@ -400,17 +400,17 @@ namespace GaussianSplatting.Runtime
             }
             
             m_DrawIndirectBuffer = new ComputeBuffer(5, sizeof(int), ComputeBufferType.IndirectArguments) { name = "DrawIndirectBuffer" };
-            int splateCountScale = 1;
+            int splatCountScale = 1;
             if (Application.isPlaying)
             {
-                splateCountScale = 2;
-                m_GpuView = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Asset.splatCount * splateCountScale, kGpuViewDataSize) { name = "GaussianViewData" };
+                splatCountScale = 2;
+                m_GpuView = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Asset.splatCount * splatCountScale, kGpuViewDataSize) { name = "GaussianViewData" };
             }
             else
             {
                 m_GpuView = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Asset.splatCount, kGpuViewDataSize) { name = "GaussianViewData" };
             }
-            m_DrawIndirectBuffer.SetData(new int[]{ 6, m_SplatCount * splateCountScale, 0, 0, 0});
+            m_DrawIndirectBuffer.SetData(new int[]{ 6, m_SplatCount * splatCountScale, 0, 0, 0});
             
 
             m_GpuIndexBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Index, 36, 2) { name = "GPUIndexBuffer"};
