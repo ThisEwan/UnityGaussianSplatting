@@ -157,14 +157,6 @@ namespace GaussianSplatting.Runtime
                     instanceCount = gs.m_GpuChunksValid ? gs.m_GpuChunks.count : 0;
 
                 cmb.BeginSample(s_ProfDraw);
-                // cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount, mpb);
-                int instanceCountScale = 1;
-                if (XRSettings.stereoRenderingMode == XRSettings.StereoRenderingMode.SinglePassInstanced)
-                {
-                    instanceCountScale = 2;
-                }
-                int[] args = { indexCount, instanceCount * instanceCountScale, 0, 0, 0 };
-                gs.m_DrawIndirectBuffer.SetData(args);
                 cmb.DrawProceduralIndirect(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, gs.m_DrawIndirectBuffer, 0 ,mpb);
                 cmb.EndSample(s_ProfDraw);
             }
@@ -407,14 +399,18 @@ namespace GaussianSplatting.Runtime
                 m_GpuChunksValid = false;
             }
             
+            m_DrawIndirectBuffer = new ComputeBuffer(5, sizeof(int), ComputeBufferType.IndirectArguments) { name = "DrawIndirectBuffer" };
+            int splateCountScale = 1;
             if (Application.isPlaying)
             {
-                m_GpuView = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Asset.splatCount * 2, kGpuViewDataSize) { name = "GaussianViewData" };
+                splateCountScale = 2;
+                m_GpuView = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Asset.splatCount * splateCountScale, kGpuViewDataSize) { name = "GaussianViewData" };
             }
             else
             {
                 m_GpuView = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Asset.splatCount, kGpuViewDataSize) { name = "GaussianViewData" };
             }
+            m_DrawIndirectBuffer.SetData(new int[]{ 6, m_SplatCount * splateCountScale, 0, 0, 0});
             
 
             m_GpuIndexBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Index, 36, 2) { name = "GPUIndexBuffer"};
@@ -428,8 +424,6 @@ namespace GaussianSplatting.Runtime
                 0, 4, 1, 4, 5, 1,
                 2, 3, 6, 3, 7, 6
             });
-            
-            m_DrawIndirectBuffer = new ComputeBuffer(5, sizeof(int), ComputeBufferType.IndirectArguments) { name = "DrawIndirectBuffer" };
 
             InitSortBuffers(splatCount);
         }
@@ -531,6 +525,7 @@ namespace GaussianSplatting.Runtime
 
             DisposeBuffer(ref m_GpuView);
             DisposeBuffer(ref m_GpuIndexBuffer);
+            m_DrawIndirectBuffer.Dispose();
             DisposeBuffer(ref m_GpuSortDistances);
             DisposeBuffer(ref m_GpuSortKeys);
 
