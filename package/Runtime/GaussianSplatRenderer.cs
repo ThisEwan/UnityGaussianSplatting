@@ -157,7 +157,15 @@ namespace GaussianSplatting.Runtime
                     instanceCount = gs.m_GpuChunksValid ? gs.m_GpuChunks.count : 0;
 
                 cmb.BeginSample(s_ProfDraw);
-                cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount, mpb);
+                // cmb.DrawProcedural(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, indexCount, instanceCount, mpb);
+                int instanceCountScale = 1;
+                if (XRSettings.stereoRenderingMode == XRSettings.StereoRenderingMode.SinglePassInstanced)
+                {
+                    instanceCountScale = 2;
+                }
+                int[] args = { indexCount, instanceCount * instanceCountScale, 0, 0, 0 };
+                gs.m_DrawIndirectBuffer.SetData(args);
+                cmb.DrawProceduralIndirect(gs.m_GpuIndexBuffer, matrix, displayMat, 0, topology, gs.m_DrawIndirectBuffer, 0 ,mpb);
                 cmb.EndSample(s_ProfDraw);
             }
             return matComposite;
@@ -250,6 +258,7 @@ namespace GaussianSplatting.Runtime
         internal bool m_GpuChunksValid;
         internal GraphicsBuffer m_GpuView;
         internal GraphicsBuffer m_GpuIndexBuffer;
+        internal ComputeBuffer m_DrawIndirectBuffer;
 
         // these buffers are only for splat editing, and are lazily created
         GraphicsBuffer m_GpuEditCutouts;
@@ -400,15 +409,15 @@ namespace GaussianSplatting.Runtime
             
             if (Application.isPlaying)
             {
-                m_GpuView = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Asset.splatCount * 2, kGpuViewDataSize);
+                m_GpuView = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Asset.splatCount * 2, kGpuViewDataSize) { name = "GaussianViewData" };
             }
             else
             {
-                m_GpuView = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Asset.splatCount, kGpuViewDataSize);
+                m_GpuView = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_Asset.splatCount, kGpuViewDataSize) { name = "GaussianViewData" };
             }
             
 
-            m_GpuIndexBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Index, 36, 2);
+            m_GpuIndexBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Index, 36, 2) { name = "GPUIndexBuffer"};
             // cube indices, most often we use only the first quad
             m_GpuIndexBuffer.SetData(new ushort[]
             {
@@ -419,6 +428,8 @@ namespace GaussianSplatting.Runtime
                 0, 4, 1, 4, 5, 1,
                 2, 3, 6, 3, 7, 6
             });
+            
+            m_DrawIndirectBuffer = new ComputeBuffer(5, sizeof(int), ComputeBufferType.IndirectArguments) { name = "DrawIndirectBuffer" };
 
             InitSortBuffers(splatCount);
         }
