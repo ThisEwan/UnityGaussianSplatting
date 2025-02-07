@@ -16,6 +16,8 @@
 #pragma kernel CSScaleSelection
 #pragma kernel CSExportData
 #pragma kernel CSCopySplats
+#pragma kernel CSClearVisibleCounts
+#pragma kernel CSUpdateVisibleCounts
 
 // DeviceRadixSort
 #pragma multi_compile __ KEY_UINT KEY_INT KEY_FLOAT
@@ -27,6 +29,8 @@
 #pragma kernel Upsweep
 #pragma kernel Scan
 #pragma kernel Downsweep
+// #pragma kernel CSClearVisibleCounts
+// #pragma kernel CSUpdateVisibleCounts
 
 // GPU sorting needs wave ops
 #pragma require wavebasic
@@ -40,6 +44,7 @@
 float4x4 _MatrixObjectToWorld;
 float4x4 _MatrixWorldToObject;
 float4x4 _MatrixMV;
+float4x4 _MatrixP;
 float4x4 _MatrixLV;
 float4x4 _MatrixRV;
 float4x4 _MatrixLP;
@@ -63,6 +68,15 @@ uint FloatToSortableUint(float f)
     return fu ^ mask;
 }
 
+RWStructuredBuffer<uint> _VisibleCounts;
+// RWStructuredBuffer<float4> _ClipPositions;
+
+[numthreads(1, 1, 1)]
+void CSClearVisibleCounts(uint3 idx : SV_DispatchThreadID)
+{
+    _VisibleCounts[0] = 0;
+}
+
 [numthreads(GROUP_SIZE,1,1)]
 void CSSetIndices (uint3 id : SV_DispatchThreadID)
 {
@@ -70,7 +84,33 @@ void CSSetIndices (uint3 id : SV_DispatchThreadID)
     if (idx >= _SplatCount)
         return;
 
-    _SplatSortKeys[idx] = idx;
+    float3 pos = LoadSplatPos(idx);
+    pos = mul(_MatrixMV, float4(pos.xyz, 1)).xyz;
+    float4 clipPos = mul(_MatrixP, float4(pos.xyz, 1));
+    // float4 ndc = float4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z / clipPos.w, 1.0f);
+    // _ClipPositions[idx] = ndc;
+    // if (ndc.x >= -1.0f && ndc.x <= 1.0f && ndc.y >= -1.0f && ndc.y <= 1.0f && ndc.z >= 0.0f && ndc.z <= 1.0f && clipPos.w != 0.0f)
+    if (-clipPos.w < clipPos.x && clipPos.x < clipPos.w && -clipPos.w < clipPos.y && clipPos.y < clipPos.w)
+    {
+        uint writePos;
+        InterlockedAdd(_VisibleCounts[0], 1, writePos);
+        _SplatSortKeys[writePos] = idx;
+    }
+    
+    // _SplatSortKeys[idx] = idx;
+}
+
+RWStructuredBuffer<int> _DrawIndirectBuffer;
+
+[numthreads(1,1,1)]
+void CSUpdateVisibleCounts(uint3 id : SV_DispatchThreadID)
+{
+    int splatCountSacle = 1;
+    if (_SinglePassMode == 1)
+    {
+        splatCountSacle = 2;
+    }
+    _DrawIndirectBuffer[1] = (int)_VisibleCounts[0] * splatCountSacle;
 }
 
 [numthreads(GROUP_SIZE,1,1)]
