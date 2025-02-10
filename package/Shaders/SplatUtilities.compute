@@ -71,33 +71,43 @@ uint FloatToSortableUint(float f)
 RWStructuredBuffer<uint> _VisibleCounts;
 // RWStructuredBuffer<float4> _ClipPositions;
 
-[numthreads(1, 1, 1)]
-void CSClearVisibleCounts(uint3 idx : SV_DispatchThreadID)
+[numthreads(GROUP_SIZE, 1, 1)]
+void CSClearVisibleCounts(uint3 id : SV_DispatchThreadID)
 {
+    uint idx = id.x;
+    if (idx >= _SplatCount)
+        return;
+    
     _VisibleCounts[0] = 0;
+    _SplatSortKeys[idx] = -1;
+    _SplatSortDistances[idx] = -1;
 }
 
-[numthreads(GROUP_SIZE,1,1)]
-void CSSetIndices (uint3 id : SV_DispatchThreadID)
+[numthreads(GROUP_SIZE, 1, 1)]
+void CSSetIndices(uint3 id : SV_DispatchThreadID)
 {
     uint idx = id.x;
     if (idx >= _SplatCount)
         return;
 
+    // 计算 splat 的剪裁空间位置
     float3 pos = LoadSplatPos(idx);
-    pos = mul(_MatrixMV, float4(pos.xyz, 1)).xyz;
-    float4 clipPos = mul(_MatrixP, float4(pos.xyz, 1));
-    // float4 ndc = float4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z / clipPos.w, 1.0f);
-    // _ClipPositions[idx] = ndc;
-    // if (ndc.x >= -1.0f && ndc.x <= 1.0f && ndc.y >= -1.0f && ndc.y <= 1.0f && ndc.z >= 0.0f && ndc.z <= 1.0f && clipPos.w != 0.0f)
-    if (-clipPos.w < clipPos.x && clipPos.x < clipPos.w && -clipPos.w < clipPos.y && clipPos.y < clipPos.w)
-    {
-        uint writePos;
-        InterlockedAdd(_VisibleCounts[0], 1, writePos);
-        _SplatSortKeys[writePos] = idx;
-    }
+    pos = mul(_MatrixMV, float4(pos, 1)).xyz;
+    float4 clipPos = mul(_MatrixP, float4(pos, 1));
+    // _ClipPositions[idx] = clipPos;
+
+    // 判断当前 splat 是否在视口内可见
+    bool isVisible = (-clipPos.w < clipPos.x) && (clipPos.x < clipPos.w) &&
+                     (-clipPos.w < clipPos.y) && (clipPos.y < clipPos.w) &&
+                     (-clipPos.w <= clipPos.z) && (clipPos.z < clipPos.w);
     
-    // _SplatSortKeys[idx] = idx;
+    if (isVisible)
+    {
+        // 每个可见的线程直接使用原子加获得全局写入索引
+        uint globalWriteIndex;
+        InterlockedAdd(_VisibleCounts[0], 1, globalWriteIndex);
+        _SplatSortKeys[globalWriteIndex] = idx;
+    }
 }
 
 RWStructuredBuffer<int> _DrawIndirectBuffer;
@@ -117,7 +127,7 @@ void CSUpdateVisibleCounts(uint3 id : SV_DispatchThreadID)
 void CSCalcDistances (uint3 id : SV_DispatchThreadID)
 {
     uint idx = id.x;
-    if (idx >= _SplatCount)
+    if (idx >= _VisibleCounts[0])
         return;
 
     uint origIdx = _SplatSortKeys[idx];
