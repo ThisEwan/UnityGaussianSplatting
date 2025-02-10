@@ -324,23 +324,24 @@ void CSCalcViewData (uint3 id : SV_DispatchThreadID)
         {
             float4x4 v;
             float4x4 p;
-            float4 cameraPosWS;
+            // float4 cameraPosWS;
             if (idx % 2 == 0)
             {
                 v = _MatrixLV;
                 p = _MatrixLP;
-                cameraPosWS = _VecWorldSpaceLeftCameraPos;
+                // cameraPosWS = _VecWorldSpaceLeftCameraPos;
             }
             else if (idx % 2 == 1)
             {
                 v = _MatrixRV;
                 p = _MatrixRP;
-                cameraPosWS = _VecWorldSpaceRightCameraPos;
+                // cameraPosWS = _VecWorldSpaceRightCameraPos;
             }
             float4x4 vm = mul(v, _MatrixObjectToWorld);
             cov2d = CalcCovariance2D(splat.pos, cov3d0, cov3d1, vm, p, _VecScreenParams);
             DecomposeCovariance(cov2d, view.axis1, view.axis2);
-            worldViewDir = cameraPosWS.xyz - centerWorldPos.xyz;
+            // worldViewDir = cameraPosWS.xyz - centerWorldPos.xyz;
+            worldViewDir = _VecWorldSpaceCameraPos.xyz - centerWorldPos.xyz;
         }
         else
         {
