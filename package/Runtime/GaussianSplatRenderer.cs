@@ -534,6 +534,12 @@ namespace GaussianSplatting.Runtime
             buf = null;
         }
 
+        static void DisposeBuffer(ref ComputeBuffer buf)
+        {
+            buf?.Dispose();
+            buf = null;
+        }
+
         void DisposeResourcesForAsset()
         {
             DestroyImmediate(m_GpuColorData);
@@ -545,7 +551,7 @@ namespace GaussianSplatting.Runtime
 
             DisposeBuffer(ref m_GpuView);
             DisposeBuffer(ref m_GpuIndexBuffer);
-            m_DrawIndirectBuffer.Dispose();
+            DisposeBuffer(ref m_DrawIndirectBuffer);
             DisposeBuffer(ref m_GpuSortDistances);
             DisposeBuffer(ref m_GpuSortKeys);
             DisposeBuffer(ref m_VisibleCounts);
