@@ -18,6 +18,8 @@ HLSLPROGRAM
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+#include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRendering.hlsl"
 
 struct Attributes
 {
@@ -40,6 +42,10 @@ Varyings vert(Attributes input)
     float2 quadPos = float2(input.vertexID&1, (input.vertexID>>1)&1) * 4.0 - 1.0;
     
     output.positionCS = float4(quadPos, 1, 1);
+
+    output.positionCS.xy /= output.positionCS.ww;
+    
+    output.positionCS.xy = FoveatedRemapLinearToNonUniform(output.positionCS.xy);
 
     return output;
 }
