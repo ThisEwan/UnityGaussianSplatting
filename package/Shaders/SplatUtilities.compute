@@ -239,9 +239,6 @@ bool IsSplatCut(float3 pos)
     return finalCut;
 }
 
-RWStructuredBuffer<uint> _VisibleIndexes;
-StructuredBuffer<uint> _OrderBuffer;
-
 [numthreads(GROUP_SIZE,1,1)]
 void CSCalcViewData (uint3 id : SV_DispatchThreadID)
 {
@@ -250,7 +247,6 @@ void CSCalcViewData (uint3 id : SV_DispatchThreadID)
     float4 centerClipPos;
     SplatData splat;
     float4 centerWorldPos;
-    uint visible = 0;
     
     if (_SinglePassMode == 1)
     {
@@ -356,16 +352,6 @@ void CSCalcViewData (uint3 id : SV_DispatchThreadID)
         view.color.x = (f32tof16(col.r) << 16) | f32tof16(col.g);
         view.color.y = (f32tof16(col.b) << 16) | f32tof16(col.a);
     }
-    if (IsWithFrustum(view.pos))
-    {
-        visible = _OrderBuffer[idx] + 1;
-    }
-    else
-    {
-        visible = 0;
-    }
-    
-    _VisibleIndexes[idx] = visible;
     _SplatViewData[idx] = view;
 }
 

@@ -41,7 +41,6 @@ struct v2f
 StructuredBuffer<SplatViewData> _SplatViewData;
 ByteAddressBuffer _SplatSelectedBits;
 uint _SplatBitsValid;
-StructuredBuffer<uint> _VisibleIndexes;
 
 v2f vert (appdata v)
 {
@@ -51,10 +50,10 @@ v2f vert (appdata v)
 
 	uint instId = v.instID;
 #ifdef STEREO_INSTANCING_ON	
-	instId = _VisibleIndexes[floor(instId / 2)];
+	instId = _OrderBuffer[floor(instId / 2)];
 	SplatViewData view = _SplatViewData[instId * 2 + unity_StereoEyeIndex];
 #else
-	instId = _VisibleIndexes[instId];
+	instId = _OrderBuffer[instId];
 	SplatViewData view = _SplatViewData[instId];
 #endif
 
