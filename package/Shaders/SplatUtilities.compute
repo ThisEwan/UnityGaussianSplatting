@@ -16,6 +16,8 @@
 #pragma kernel CSScaleSelection
 #pragma kernel CSExportData
 #pragma kernel CSCopySplats
+#pragma kernel CSClearCachedData
+#pragma kernel CSUpdateVisibleCounts
 
 // DeviceRadixSort
 #pragma multi_compile __ KEY_UINT KEY_INT KEY_FLOAT
@@ -40,6 +42,7 @@
 float4x4 _MatrixObjectToWorld;
 float4x4 _MatrixWorldToObject;
 float4x4 _MatrixMV;
+float4x4 _MatrixP;
 float4x4 _MatrixLV;
 float4x4 _MatrixRV;
 float4x4 _MatrixLP;
@@ -63,21 +66,64 @@ uint FloatToSortableUint(float f)
     return fu ^ mask;
 }
 
-[numthreads(GROUP_SIZE,1,1)]
-void CSSetIndices (uint3 id : SV_DispatchThreadID)
+RWStructuredBuffer<uint> _VisibleCounts;
+
+[numthreads(GROUP_SIZE, 1, 1)]
+void CSClearCachedData(uint3 id : SV_DispatchThreadID)
+{
+    uint idx = id.x;
+    if (idx >= _SplatCount)
+        return;
+    
+    _VisibleCounts[0] = 0;
+    _SplatSortKeys[idx] = -1;
+    _SplatSortDistances[idx] = -1;
+}
+
+[numthreads(GROUP_SIZE, 1, 1)]
+void CSSetIndices(uint3 id : SV_DispatchThreadID)
 {
     uint idx = id.x;
     if (idx >= _SplatCount)
         return;
 
-    _SplatSortKeys[idx] = idx;
+    // 计算 splat 的剪裁空间位置
+    float3 pos = LoadSplatPos(idx);
+    pos = mul(_MatrixMV, float4(pos, 1)).xyz;
+    float4 clipPos = mul(_MatrixP, float4(pos, 1));
+
+    // 判断当前 splat 是否在视口内可见
+    bool isVisible = (-clipPos.w < clipPos.x) && (clipPos.x < clipPos.w) &&
+                     (-clipPos.w < clipPos.y) && (clipPos.y < clipPos.w) &&
+                     (-clipPos.w <= clipPos.z) && (clipPos.z < clipPos.w);
+    
+    if (isVisible)
+    {
+        // 每个可见的线程直接使用原子加获得全局写入索引
+        uint globalWriteIndex;
+        InterlockedAdd(_VisibleCounts[0], 1, globalWriteIndex);
+        _SplatSortKeys[globalWriteIndex] = idx;
+    }
+}
+
+RWStructuredBuffer<int> _DrawIndirectBuffer;
+
+[numthreads(1,1,1)]
+void CSUpdateVisibleCounts(uint3 id : SV_DispatchThreadID)
+{
+    int splatCountSacle = 1;
+    if (_SinglePassMode == 1)
+    {
+        splatCountSacle = 2;
+    }
+    _DrawIndirectBuffer[1] = (int)_VisibleCounts[0] * splatCountSacle;
 }
 
 [numthreads(GROUP_SIZE,1,1)]
 void CSCalcDistances (uint3 id : SV_DispatchThreadID)
 {
     uint idx = id.x;
-    if (idx >= _SplatCount)
+    if (idx >= _VisibleCounts[0])
         return;
 
     uint origIdx = _SplatSortKeys[idx];
@@ -278,23 +324,20 @@ void CSCalcViewData (uint3 id : SV_DispatchThreadID)
         {
             float4x4 v;
             float4x4 p;
-            float4 cameraPosWS;
             if (idx % 2 == 0)
             {
                 v = _MatrixLV;
                 p = _MatrixLP;
-                cameraPosWS = _VecWorldSpaceLeftCameraPos;
             }
             else if (idx % 2 == 1)
             {
                 v = _MatrixRV;
                 p = _MatrixRP;
-                cameraPosWS = _VecWorldSpaceRightCameraPos;
             }
             float4x4 vm = mul(v, _MatrixObjectToWorld);
             cov2d = CalcCovariance2D(splat.pos, cov3d0, cov3d1, vm, p, _VecScreenParams);
             DecomposeCovariance(cov2d, view.axis1, view.axis2);
-            worldViewDir = cameraPosWS.xyz - centerWorldPos.xyz;
+            worldViewDir = _VecWorldSpaceCameraPos.xyz - centerWorldPos.xyz;
         }
         else
         {
