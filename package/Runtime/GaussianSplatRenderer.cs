@@ -151,10 +151,11 @@ namespace GaussianSplatting.Runtime
                 mpb.SetInteger(GaussianSplatRenderer.Props.SHOnly, gs.m_SHOnly ? 1 : 0);
                 mpb.SetInteger(GaussianSplatRenderer.Props.DisplayIndex, gs.m_RenderMode == GaussianSplatRenderer.RenderMode.DebugPointIndices ? 1 : 0);
                 mpb.SetInteger(GaussianSplatRenderer.Props.DisplayChunks, gs.m_RenderMode == GaussianSplatRenderer.RenderMode.DebugChunkBounds ? 1 : 0);
-
-                // uint[] visibleCounts = new uint[1];
-                // gs.m_VisibleCounts.GetData(visibleCounts);
-                // Debug.Log($"visibleCounts: {visibleCounts[0]}");
+#if UNITY_EDITOR
+                uint[] visibleCounts = new uint[1];
+                gs.m_VisibleCounts.GetData(visibleCounts);
+                Debug.Log($"visibleCounts: {visibleCounts[0]}");
+#endif
                 
                 cmb.BeginSample(s_ProfDraw);
                 cmb.DrawProceduralIndirect(gs.m_GpuIndexBuffer, matrix, displayMat, 0, MeshTopology.Triangles, gs.m_DrawIndirectBuffer, 0 ,mpb);
@@ -647,6 +648,10 @@ namespace GaussianSplatting.Runtime
             cmd.SetComputeMatrixParam(m_CSSplatUtilities, Props.MatrixP, projectionMatrix);
             cmd.SetComputeIntParam(m_CSSplatUtilities, Props.SplatCount, m_SplatCount);
             cmd.SetComputeIntParam(m_CSSplatUtilities, Props.SplatChunkCount, m_GpuChunksValid ? m_GpuChunks.count : 0);
+            if (XRSettings.stereoRenderingMode == XRSettings.StereoRenderingMode.SinglePassInstanced)
+            {
+                cmd.SetComputeIntParam(m_CSSplatUtilities, Props.SinglePassMode, 1);
+            }
             m_CSSplatUtilities.GetKernelThreadGroupSizes((int)KernelIndices.SetIndices, out uint gsX, out _, out _);
             var threadGroupsX = Mathf.CeilToInt(m_GpuSortDistances.count + (int)gsX - 1)/(int)gsX;
             cmd.DispatchCompute(m_CSSplatUtilities,(int)KernelIndices.SetIndices, threadGroupsX, 1, 1);
