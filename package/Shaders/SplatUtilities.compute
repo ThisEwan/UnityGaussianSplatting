@@ -91,6 +91,10 @@ void CSSetIndices(uint3 id : SV_DispatchThreadID)
     float3 pos = LoadSplatPos(idx);
     pos = mul(_MatrixMV, float4(pos, 1)).xyz;
     float4 clipPos = mul(_MatrixP, float4(pos, 1));
+    if (_SinglePassMode == 1)
+    {
+        clipPos.x *= 2.0f;
+    }
 
     // 判断当前 splat 是否在视口内可见
     bool isVisible = (-clipPos.w < clipPos.x) && (clipPos.x < clipPos.w) &&
