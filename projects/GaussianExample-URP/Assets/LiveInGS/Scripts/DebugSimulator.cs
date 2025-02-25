@@ -13,7 +13,7 @@ public class DebugSimulator : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-#if UNITY_EDITOR
+#if UNITY_EDITOR || PLATFORM_STANDALONE_OSX 
         KeyboardControl();
 #endif
     }
