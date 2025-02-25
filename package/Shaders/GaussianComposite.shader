@@ -41,21 +41,19 @@ Varyings vert(Attributes input)
 
     float2 quadPos = float2(input.vertexID&1, (input.vertexID>>1)&1) * 4.0 - 1.0;
     
-    output.positionCS = float4(quadPos, 1, 1);
-
-    output.positionCS.xy /= output.positionCS.ww;
+    output.positionCS = float4(quadPos, 0, 1);
     
-    output.positionCS.xy = FoveatedRemapLinearToNonUniform(output.positionCS.xy);
-
     return output;
 }
 
 TEXTURE2D_X(_GaussianSplatRT);
+SAMPLER(sampler_GaussianSplatRT);
 
 half4 frag (Varyings i) : SV_Target
 {
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
-    half4 col = LOAD_TEXTURE2D_X(_GaussianSplatRT, i.positionCS.xy);
+    float2 foveatedUV = FoveatedRemapNonUniformToLinear(i.positionCS.xy / _ScreenParams.xy);
+    half4 col = SAMPLE_TEXTURE2D_X(_GaussianSplatRT, sampler_GaussianSplatRT, foveatedUV);
     col.rgb = Gamma22ToLinear(col.xyz);
     col.a = saturate(col.a * 1.5);
     return col;
