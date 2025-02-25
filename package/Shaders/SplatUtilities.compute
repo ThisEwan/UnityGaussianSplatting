@@ -94,6 +94,7 @@ void CSSetIndices(uint3 id : SV_DispatchThreadID)
     if (_SinglePassMode == 1)
     {
         clipPos.x *= 2.0f;
+        clipPos.y *= 2.0f;
     }
 
     // 判断当前 splat 是否在视口内可见
