@@ -151,12 +151,11 @@ namespace GaussianSplatting.Runtime
                 mpb.SetInteger(GaussianSplatRenderer.Props.SHOnly, gs.m_SHOnly ? 1 : 0);
                 mpb.SetInteger(GaussianSplatRenderer.Props.DisplayIndex, gs.m_RenderMode == GaussianSplatRenderer.RenderMode.DebugPointIndices ? 1 : 0);
                 mpb.SetInteger(GaussianSplatRenderer.Props.DisplayChunks, gs.m_RenderMode == GaussianSplatRenderer.RenderMode.DebugChunkBounds ? 1 : 0);
-#if UNITY_EDITOR
-                uint[] visibleCounts = new uint[1];
-                gs.m_VisibleCounts.GetData(visibleCounts);
-                Debug.Log($"visibleCounts: {visibleCounts[0]}");
-#endif
-                
+// #if UNITY_EDITOR
+//                 uint[] visibleCounts = new uint[1];
+//                 gs.m_VisibleCounts.GetData(visibleCounts);
+//                 Debug.Log($"visibleCounts: {visibleCounts[0]}");
+// #endif
                 cmb.BeginSample(s_ProfDraw);
                 cmb.DrawProceduralIndirect(gs.m_GpuIndexBuffer, matrix, displayMat, 0, MeshTopology.Triangles, gs.m_DrawIndirectBuffer, 0 ,mpb);
                 cmb.EndSample(s_ProfDraw);

@@ -65,18 +65,19 @@ namespace GaussianSplatting.Runtime
                 passData.SourceDepth = resourceData.activeDepthTexture;
                 passData.GaussianSplatRT = textureHandle;
 
-                builder.UseTexture(resourceData.activeColorTexture, AccessFlags.ReadWrite);
+                builder.UseTexture(resourceData.activeColorTexture, AccessFlags.Write);
                 builder.UseTexture(resourceData.activeDepthTexture);
-                builder.UseTexture(textureHandle, AccessFlags.Write);
+                builder.UseTexture(passData.GaussianSplatRT, AccessFlags.ReadWrite);
                 builder.AllowPassCulling(false);
                 builder.SetRenderFunc(static (PassData data, UnsafeGraphContext context) =>
                 {
                     var commandBuffer = CommandBufferHelpers.GetNativeCommandBuffer(context.cmd);
                     using var _ = new ProfilingScope(commandBuffer, s_profilingSampler);
+                    // Must enable foveated rendering before draw gaussian splat
+                    commandBuffer.SetFoveatedRenderingMode(FoveatedRenderingMode.Enabled);
                     commandBuffer.SetGlobalTexture(s_gaussianSplatRT, data.GaussianSplatRT);
                     CoreUtils.SetRenderTarget(commandBuffer, data.GaussianSplatRT, data.SourceDepth, ClearFlag.Color, Color.clear);
                     Material matComposite = GaussianSplatRenderSystem.instance.SortAndRenderSplats(data.CameraData.camera, commandBuffer);
-                    commandBuffer.SetFoveatedRenderingMode(FoveatedRenderingMode.Enabled);
                     commandBuffer.BeginSample(GaussianSplatRenderSystem.s_ProfCompose);
                     Blitter.BlitCameraTexture(commandBuffer, data.GaussianSplatRT, data.SourceTexture, matComposite, 0);
                     commandBuffer.EndSample(GaussianSplatRenderSystem.s_ProfCompose);
